@@ -17,7 +17,7 @@ def adjudicate_orders(
     """Resolve orders and return the next state.
 
     Simplifications:
-    - Supports only add strength for matching move orders.
+    - Supports add strength for matching move or hold orders.
     - Support cutting and support-hold are ignored.
     - Dislodged units are removed from the board.
     """
@@ -30,9 +30,15 @@ def adjudicate_orders(
     }
 
     move_strengths = _compute_move_strengths(state, normalized_orders, move_orders)
+    hold_strengths = _compute_hold_strengths(state, normalized_orders)
     candidate_moves = _determine_candidate_moves(move_orders, move_strengths)
     successful_moves = _resolve_move_success(
-        state, normalized_orders, move_orders, move_strengths, candidate_moves
+        state,
+        normalized_orders,
+        move_orders,
+        move_strengths,
+        hold_strengths,
+        candidate_moves,
     )
 
     return _apply_moves(state, move_orders, successful_moves)
@@ -78,6 +84,32 @@ def _compute_move_strengths(
     }
 
 
+def _compute_hold_strengths(
+    state: GameState, orders: Dict[UnitKey, Order]
+) -> Dict[UnitKey, int]:
+    hold_support_counts: Dict[UnitKey, int] = {}
+    for order in orders.values():
+        if not isinstance(order, Support):
+            continue
+        if order.to_node is not None:
+            continue
+        supported_key = (order.supported_power, order.supported_unit_id)
+        supported_order = orders.get(supported_key)
+        if not isinstance(supported_order, Hold):
+            continue
+        supported_location = state.units.get(order.supported_power, {}).get(
+            order.supported_unit_id
+        )
+        if supported_location != order.from_node:
+            continue
+        hold_support_counts[supported_key] = hold_support_counts.get(supported_key, 0) + 1
+
+    return {
+        unit_key: 1 + support_count
+        for unit_key, support_count in hold_support_counts.items()
+    }
+
+
 def _determine_candidate_moves(
     move_orders: Dict[UnitKey, Move], move_strengths: Dict[UnitKey, int]
 ) -> set[UnitKey]:
@@ -103,6 +135,7 @@ def _resolve_move_success(
     orders: Dict[UnitKey, Order],
     move_orders: Dict[UnitKey, Move],
     move_strengths: Dict[UnitKey, int],
+    hold_strengths: Dict[UnitKey, int],
     candidate_moves: Iterable[UnitKey],
 ) -> set[UnitKey]:
     successful_moves = set(candidate_moves)
@@ -118,7 +151,10 @@ def _resolve_move_success(
             defender_success = defender_key in successful_moves
             if defender_is_moving and defender_success:
                 continue
-            if move_strengths[unit_key] <= 1:
+            defender_strength = 1
+            if isinstance(defender_order, Hold):
+                defender_strength = hold_strengths.get(defender_key, 1)
+            if move_strengths[unit_key] <= defender_strength:
                 removals.add(unit_key)
         if not removals:
             break
