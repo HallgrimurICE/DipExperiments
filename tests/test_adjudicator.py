@@ -87,8 +87,8 @@ def test_head_to_head_equal_strength_bounces():
 
 
 def test_swap_with_strength_advantage_succeeds():
-    # Swap attempt where one mover has support and the other does not.
-    # The supported move succeeds; the weaker move is allowed to swap into the vacated node.
+    # Head-to-head swap attempt where one mover has support and the other does not.
+    # The supported move succeeds; the weaker move is dislodged and removed.
     state = GameState(
         units={
             "p1": {"u1": "A", "s1": "C"},
@@ -104,4 +104,4 @@ def test_swap_with_strength_advantage_succeeds():
     next_state = adjudicate_orders(state, orders)
 
     assert next_state.units["p1"]["u1"] == "B"
-    assert next_state.units["p2"]["u2"] == "A"
+    assert "u2" not in next_state.units.get("p2", {})
