@@ -189,3 +189,31 @@ def run_game(
         seed=seed,
     )
     return game.run()
+
+
+if __name__ == "__main__":
+    map_def = MapDef(
+        name="mini",
+        nodes=("A", "B", "C"),
+        edges=(("A", "B"), ("B", "C")),
+        supply_centers=("A", "B", "C"),
+        home_centers={"p1": "A", "p2": "C"},
+    )
+
+
+    #random seed
+    import random
+    seed = random.randint(0, 1000000)
+
+    result = run_game(
+        map_def,
+        target_centers=2,
+        max_turns=50,
+        seed=seed,
+    )
+
+    print("winner:", result.winner)
+    print("draw:", result.draw)
+    print("centers:", result.centers)
+    print("turn:", result.turn)
+    print("reason:", result.reason)
