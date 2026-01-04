@@ -11,7 +11,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from dip_tom.agents.random_agent import RandomAgent
-from dip_tom.env.game import active_powers, run_game
+from dip_tom.env.game import active_powers, run_game, winning_power
 from dip_tom.env.state import GameState
 from dip_tom.maps import triangle3
 
@@ -32,7 +32,10 @@ def main() -> None:
 
     final_state = run_game(state, triangle3.MAP_DEF, agents, max_turns=200)
     survivors = active_powers(final_state)
+    winner = winning_power(final_state, triangle3.MAP_DEF)
     print(f"Game finished after {final_state.turn} turns.")
+    if winner:
+        print(f"Winning power: {winner}")
     print(f"Remaining powers: {', '.join(survivors) if survivors else 'none'}")
     print(final_state.units)
 
