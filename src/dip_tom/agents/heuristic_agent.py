@@ -44,7 +44,10 @@ class HeuristicAgent:
     def _score_move(order: Move, state: GameState, map_def: MapDef, power: Power) -> int:
         if order.to_node not in map_def.supply_centers:
             return 0
-        owner = state.center_owner.get(order.to_node)
+        occupant = _unit_owner_at(state, order.to_node)
+        if occupant == power:
+            return 0
+        owner = _center_owner(state, map_def, order.to_node)
         if owner is None:
             return 3
         if owner != power:
@@ -55,7 +58,26 @@ class HeuristicAgent:
     def _score_support(order: Support, state: GameState, map_def: MapDef) -> int:
         if order.to_node is None or order.to_node not in map_def.supply_centers:
             return 0
-        owner = state.center_owner.get(order.to_node)
+        owner = _center_owner(state, map_def, order.to_node)
         if owner == order.supported_power:
             return 0
+        if _unit_owner_at(state, order.to_node) == order.supported_power:
+            return 0
         return 2
+
+
+def _center_owner(state: GameState, map_def: MapDef, center: str) -> Power | None:
+    owner = state.center_owner.get(center)
+    if owner is not None:
+        return owner
+    if center not in map_def.supply_centers:
+        return None
+    return _unit_owner_at(state, center)
+
+
+def _unit_owner_at(state: GameState, node: str) -> Power | None:
+    for power, units in state.units.items():
+        for _, location in units.items():
+            if location == node:
+                return power
+    return None
