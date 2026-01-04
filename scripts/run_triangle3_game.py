@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SRC = ROOT / "src"
+if str(SRC) not in sys.path:
+    sys.path.insert(0, str(SRC))
+
 from dip_tom.agents.random_agent import RandomAgent
 from dip_tom.env.game import active_powers, run_game
 from dip_tom.env.state import GameState
