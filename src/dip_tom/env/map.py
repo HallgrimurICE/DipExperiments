@@ -48,3 +48,21 @@ def _build_graph(map_def: MapDef) -> nx.Graph:
     graph.add_nodes_from(map_def.nodes)
     graph.add_edges_from(map_def.edges)
     return graph
+
+
+if __name__ == "__main__":
+    map_def = MapDef(
+        name="mini",
+        nodes=("A", "B", "C"),
+        edges=(("A", "B"), ("B", "C")),
+        supply_centers=("A",),
+        home_centers={"p1": "A"},
+    )
+
+    validate_map(map_def)
+    print("neighbors(A):", map_def.neighbors("A"))
+    print("neighbors(C):", map_def.neighbors("C"))
+    print("neighbors(B):", map_def.neighbors("B"))
+    # Expected:
+    # neighbors(A): ['B']
+    # neighbors(C): ['B']
