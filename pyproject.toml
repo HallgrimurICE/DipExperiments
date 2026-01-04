@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dip-experiments"
+version = "0.1.0"
+description = "Experimentation sandbox for DIP projects."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "DipExperiments" }]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/dip_experiments"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
