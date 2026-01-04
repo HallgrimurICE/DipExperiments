@@ -1,0 +1,9 @@
+from .triangle3 import CONTESTED_CENTER, MAP_DEF, NEUTRAL_CENTERS, POWERS, STARTING_UNITS
+
+__all__ = [
+    "CONTESTED_CENTER",
+    "MAP_DEF",
+    "NEUTRAL_CENTERS",
+    "POWERS",
+    "STARTING_UNITS",
+]
