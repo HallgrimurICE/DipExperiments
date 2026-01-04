@@ -67,6 +67,25 @@ def test_two_supported_moves_tie_and_bounce():
     assert next_state.units["p2"]["u2"] == "D"
 
 
+def test_head_to_head_equal_strength_bounces():
+    # Two units swap targets with equal strength, so both moves should bounce.
+    state = GameState(
+        units={
+            "p1": {"u1": "A"},
+            "p2": {"u2": "B"},
+        }
+    )
+    orders = {
+        ("p1", "u1"): Move("p1", "u1", "B"),
+        ("p2", "u2"): Move("p2", "u2", "A"),
+    }
+
+    next_state = adjudicate_orders(state, orders)
+
+    assert next_state.units["p1"]["u1"] == "A"
+    assert next_state.units["p2"]["u2"] == "B"
+
+
 def test_swap_with_strength_advantage_succeeds():
     # Swap attempt where one mover has support and the other does not.
     # The supported move succeeds; the weaker move is allowed to swap into the vacated node.
