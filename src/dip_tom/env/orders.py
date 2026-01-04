@@ -50,6 +50,8 @@ def legal_orders(state: GameState, map_def: MapDef, power: Power) -> Dict[UnitId
         supporter_neighbors = set(neighbors.get(location, []))
         for supported_power, units in state.units.items():
             for supported_unit_id, from_node in units.items():
+                if supported_power == power and supported_unit_id == unit_id:
+                    continue
                 if from_node in supporter_neighbors:
                     unit_orders.append(
                         Support(

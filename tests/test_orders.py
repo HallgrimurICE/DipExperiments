@@ -41,3 +41,19 @@ def test_support_orders_require_adjacent_supported_unit_or_target():
     assert Support("p1", "s1", "p2", "u2", "B", None) in orders
     assert Support("p1", "s1", "p2", "u2", "B", "C") in orders
     assert Support("p1", "s1", "p2", "u2", "B", "A") not in orders
+
+
+def test_unit_cannot_support_itself():
+    map_def = MapDef(
+        name="line",
+        nodes=("A", "B"),
+        edges=(("A", "B"),),
+        supply_centers=(),
+        home_centers={},
+    )
+    state = GameState(units={"p1": {"u1": "A"}})
+
+    orders = legal_orders(state, map_def, "p1")["u1"]
+
+    assert Support("p1", "u1", "p1", "u1", "A", None) not in orders
+    assert Support("p1", "u1", "p1", "u1", "A", "B") not in orders
