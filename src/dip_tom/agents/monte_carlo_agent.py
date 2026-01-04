@@ -25,7 +25,7 @@ class MonteCarloAgent:
         num_joint_samples: int = 30,
         rollout_horizon: int = 4,
         rollout_samples: int = 3,
-        opponent_heuristic_prob: float = 0.7,
+        opponent_heuristic_prob: float = 0.0,
     ) -> None:
         if seed is not None and rng is not None:
             raise ValueError("Provide either a seed or an rng, not both.")
@@ -117,6 +117,7 @@ class MonteCarloAgent:
         node_values: Dict[str, float],
         occupancy: Dict[str, Power],
     ) -> float:
+        center_owners = _supply_center_owners(state, map_def)
         if isinstance(order, Move):
             base = node_values.get(order.to_node, 0.0)
             occupant = occupancy.get(order.to_node)
@@ -126,6 +127,12 @@ class MonteCarloAgent:
                 base -= 1.2
             else:
                 base += 0.8
+            if order.to_node in center_owners:
+                owner = center_owners.get(order.to_node)
+                if owner is None:
+                    base += 1.2
+                elif owner != power:
+                    base += 1.5
             return base + 0.1
 
         if isinstance(order, Hold):
@@ -134,11 +141,11 @@ class MonteCarloAgent:
 
         if isinstance(order, Support):
             target = order.to_node or order.from_node
-            base = node_values.get(target, 0.0) * 0.45
+            base = node_values.get(target, 0.0) * 0.2
             if order.supported_power == power:
-                base += 0.6
+                base += 0.3
             else:
-                base -= 0.3
+                base -= 0.2
             return base
 
         return 0.0
@@ -260,11 +267,16 @@ class MonteCarloAgent:
         power: Power,
         node_values: Dict[str, float],
     ) -> float:
-        centers_owned = _count_centers(state, map_def, power)
+        center_counts = _center_counts(state, map_def)
+        centers_owned = center_counts.get(power, 0)
+        best_opponent = max(
+            (count for owner, count in center_counts.items() if owner != power),
+            default=0,
+        )
         unit_locations = list(state.units.get(power, {}).values())
         unit_count = len(unit_locations)
         positional = sum(node_values.get(node, 0.0) for node in unit_locations)
-        return centers_owned * 2.0 + unit_count + 0.15 * positional
+        return (centers_owned - best_opponent) * 3.0 + unit_count + 0.1 * positional
 
 
 def _node_values(map_def: MapDef) -> Dict[str, float]:
@@ -287,7 +299,7 @@ def _unit_occupancy(state: GameState) -> Dict[str, Power]:
     return occupancy
 
 
-def _count_centers(state: GameState, map_def: MapDef, power: Power) -> int:
+def _supply_center_owners(state: GameState, map_def: MapDef) -> Dict[str, Power | None]:
     owners: Dict[str, Power | None] = {center: None for center in map_def.supply_centers}
     for center, owner in state.center_owner.items():
         if center in owners and owner is not None:
@@ -301,5 +313,14 @@ def _count_centers(state: GameState, map_def: MapDef, power: Power) -> int:
     for center in owners:
         if owners[center] is None:
             owners[center] = unit_by_node.get(center)
+    return owners
 
-    return sum(1 for owner in owners.values() if owner == power)
+
+def _center_counts(state: GameState, map_def: MapDef) -> Dict[Power, int]:
+    owners = _supply_center_owners(state, map_def)
+    counts: Dict[Power, int] = {}
+    for owner in owners.values():
+        if owner is None:
+            continue
+        counts[owner] = counts.get(owner, 0) + 1
+    return counts
