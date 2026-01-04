@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import networkx as nx
+
 if TYPE_CHECKING:
     from dip_tom.env.map import MapDef
 
@@ -35,13 +37,17 @@ def _dot_label(node: str) -> str:
 
 
 def map_to_dot(map_def: MapDef) -> str:
+    graph = nx.Graph()
+    graph.add_nodes_from(map_def.nodes)
+    graph.add_edges_from(map_def.edges)
+
     home_nodes = {node for centers in map_def.home_centers.values() for node in centers}
     supply_nodes = set(map_def.supply_centers)
 
     lines = ["graph map {"]
     lines.append("  layout=neato;")
     lines.append("  overlap=false;")
-    for node in map_def.nodes:
+    for node in graph.nodes:
         attrs = []
         if node in supply_nodes:
             attrs.append("shape=doublecircle")
@@ -53,7 +59,7 @@ def map_to_dot(map_def: MapDef) -> str:
         line = f'  "{_dot_label(node)}" [{", ".join(attrs)}];'
         lines.append(line)
 
-    for left, right in map_def.edges:
+    for left, right in graph.edges:
         lines.append(f'  "{_dot_label(left)}" -- "{_dot_label(right)}";')
 
     lines.append("}")
