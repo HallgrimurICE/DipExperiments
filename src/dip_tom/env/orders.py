@@ -23,16 +23,16 @@ class Move:
 
 
 @dataclass(frozen=True)
-class SupportMove:
+class Support:
     power: Power
     unit_id: UnitId
     supported_power: Power
     supported_unit_id: UnitId
     from_node: Node
-    to_node: Node
+    to_node: Node | None = None
 
 
-Order = Hold | Move | SupportMove
+Order = Hold | Move | Support
 
 
 def legal_orders(state: GameState, map_def: MapDef, power: Power) -> Dict[UnitId, List[Order]]:
@@ -50,10 +50,20 @@ def legal_orders(state: GameState, map_def: MapDef, power: Power) -> Dict[UnitId
         supporter_neighbors = set(neighbors.get(location, []))
         for supported_power, units in state.units.items():
             for supported_unit_id, from_node in units.items():
+                if from_node in supporter_neighbors:
+                    unit_orders.append(
+                        Support(
+                            power=power,
+                            unit_id=unit_id,
+                            supported_power=supported_power,
+                            supported_unit_id=supported_unit_id,
+                            from_node=from_node,
+                        )
+                    )
                 for to_node in neighbors.get(from_node, []):
                     if to_node in supporter_neighbors:
                         unit_orders.append(
-                            SupportMove(
+                            Support(
                                 power=power,
                                 unit_id=unit_id,
                                 supported_power=supported_power,
