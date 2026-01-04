@@ -66,3 +66,4 @@ if __name__ == "__main__":
     # Expected:
     # neighbors(A): ['B']
     # neighbors(C): ['B']
+    # neighbors(B): ['A', 'C']
