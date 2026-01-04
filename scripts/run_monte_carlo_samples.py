@@ -40,10 +40,40 @@ def _run_series(
         final_state = run_game(state, map_def, agents, max_turns=120)
         winner = winning_power(final_state, map_def)
         if winner is None:
-            results["draw"] += 1
-        else:
-            results[winner] += 1
+            winner = _center_count_winner(final_state, map_def)
+        results[winner] += 1
     return results
+
+
+def _center_count_winner(state: GameState, map_def) -> str:
+    counts = _center_counts(state, map_def)
+    best_count = max(counts.values()) if counts else 0
+    leaders = [power for power, count in counts.items() if count == best_count]
+    if len(leaders) != 1:
+        return "draw"
+    return leaders[0]
+
+
+def _center_counts(state: GameState, map_def) -> Counter:
+    owners = {center: None for center in map_def.supply_centers}
+    for center, owner in state.center_owner.items():
+        if center in owners and owner is not None:
+            owners[center] = owner
+
+    unit_by_node: dict[str, str] = {}
+    for owner_power, units in state.units.items():
+        for _, location in units.items():
+            unit_by_node[location] = owner_power
+
+    for center in owners:
+        if owners[center] is None:
+            owners[center] = unit_by_node.get(center)
+
+    counts: Counter[str] = Counter()
+    for owner in owners.values():
+        if owner is not None:
+            counts[owner] += 1
+    return counts
 
 
 def _print_summary(map_name: str, results: Counter, num_games: int) -> None:
