@@ -6,7 +6,7 @@ from typing import Dict, Mapping
 
 from dip_tom.env.adjudicator import adjudicate_orders
 from dip_tom.env.map import MapDef
-from dip_tom.env.orders import Order
+from dip_tom.env.orders import Hold, Move, Order, Support
 from dip_tom.env.state import GameState, Power, UnitId
 
 UnitKey = tuple[Power, UnitId]
@@ -70,9 +70,30 @@ def run_game(
         for power in active_powers(current):
             agent = agents[power]
             orders.update(agent.select_orders(current, map_def, power))
+        _print_orders(current.turn, orders)
         current = adjudicate_orders(current, orders)
         current.turn += 1
     return current
+
+
+def _print_orders(turn: int, orders: Mapping[UnitKey, Order]) -> None:
+    print(f"Turn {turn + 1} orders:")
+    for unit_key in sorted(orders, key=lambda item: (item[0], item[1])):
+        order = orders[unit_key]
+        print(f"  {unit_key[0]}:{unit_key[1]} -> {_format_order(order)}")
+
+
+def _format_order(order: Order) -> str:
+    if isinstance(order, Move):
+        return f"Move to {order.to_node}"
+    if isinstance(order, Support):
+        target = f"{order.supported_power}:{order.supported_unit_id}"
+        if order.to_node is None:
+            return f"Support {target} hold"
+        return f"Support {target} to {order.to_node}"
+    if isinstance(order, Hold):
+        return "Hold"
+    return "Unknown"
 
 
 class OrderAgent:
