@@ -158,10 +158,6 @@ def _resolve_move_success(
                     if attacker_strength == defender_strength:
                         removals.add(unit_key)
                         removals.add(defender_key)
-                    elif attacker_strength < defender_strength:
-                        removals.add(unit_key)
-                    else:
-                        removals.add(defender_key)
                 continue
             defender_strength = 1
             if isinstance(defender_order, Hold):
