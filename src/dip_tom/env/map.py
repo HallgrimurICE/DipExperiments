@@ -11,7 +11,7 @@ class MapDef:
     nodes: tuple[str, ...]
     edges: tuple[tuple[str, str], ...]
     supply_centers: tuple[str, ...]
-    home_centers: dict[str, str]
+    home_centers: dict[str, tuple[str, ...]]
 
     def neighbors(self, node: str) -> list[str]:
         graph = _build_graph(self)
@@ -38,9 +38,10 @@ def validate_map(map_def: MapDef) -> None:
     if not set(map_def.supply_centers).issubset(node_set):
         raise ValueError("supply centers must be a subset of nodes")
 
-    for home_center in map_def.home_centers.values():
-        if home_center not in node_set:
-            raise ValueError("home centers must reference valid nodes")
+    for home_centers in map_def.home_centers.values():
+        for home_center in home_centers:
+            if home_center not in node_set:
+                raise ValueError("home centers must reference valid nodes")
 
 
 def _build_graph(map_def: MapDef) -> nx.Graph:
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         nodes=("A", "B", "C"),
         edges=(("A", "B"), ("B", "C")),
         supply_centers=("A",),
-        home_centers={"p1": "A"},
+        home_centers={"p1": ("A",)},
     )
 
     validate_map(map_def)
