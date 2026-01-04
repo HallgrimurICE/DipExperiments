@@ -8,9 +8,19 @@ from __future__ import annotations
 
 import argparse
 import importlib
+import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from dip_tom.env.map import MapDef
+if TYPE_CHECKING:
+    from dip_tom.env.map import MapDef
+
+
+def _ensure_src_on_path() -> None:
+    repo_root = Path(__file__).resolve().parent.parent
+    src_path = repo_root / "src"
+    if src_path.is_dir() and str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
 
 
 def _load_map(module_name: str) -> MapDef:
@@ -56,6 +66,7 @@ def main() -> None:
     parser.add_argument("--output", "-o", type=Path, help="Write DOT output to file")
     args = parser.parse_args()
 
+    _ensure_src_on_path()
     map_def = _load_map(args.map)
     dot = map_to_dot(map_def)
 
