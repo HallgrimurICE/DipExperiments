@@ -150,6 +150,18 @@ def _resolve_move_success(
             defender_is_moving = isinstance(defender_order, Move)
             defender_success = defender_key in successful_moves
             if defender_is_moving and defender_success:
+                attacker_origin = state.unit_position(*unit_key)
+                defender_target = move_orders[defender_key].to_node
+                if defender_target == attacker_origin:
+                    attacker_strength = move_strengths[unit_key]
+                    defender_strength = move_strengths[defender_key]
+                    if attacker_strength == defender_strength:
+                        removals.add(unit_key)
+                        removals.add(defender_key)
+                    elif attacker_strength < defender_strength:
+                        removals.add(unit_key)
+                    else:
+                        removals.add(defender_key)
                 continue
             defender_strength = 1
             if isinstance(defender_order, Hold):
