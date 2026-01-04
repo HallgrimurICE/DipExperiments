@@ -219,7 +219,7 @@ class MonteCarloAgent:
                             )
                 rollout_state = adjudicate_orders(rollout_state, orders)
                 rollout_state.turn += 1
-            total_reward += self._reward(rollout_state, map_def, power, node_values)
+            total_reward += self._reward(rollout_state, map_def, power)
         return total_reward / max(1, self._rollout_samples)
 
     def _heuristic_orders(
@@ -265,18 +265,13 @@ class MonteCarloAgent:
         state: GameState,
         map_def: MapDef,
         power: Power,
-        node_values: Dict[str, float],
     ) -> float:
         center_counts = _center_counts(state, map_def)
         centers_owned = center_counts.get(power, 0)
-        best_opponent = max(
-            (count for owner, count in center_counts.items() if owner != power),
-            default=0,
-        )
         unit_locations = list(state.units.get(power, {}).values())
         unit_count = len(unit_locations)
-        positional = sum(node_values.get(node, 0.0) for node in unit_locations)
-        return (centers_owned - best_opponent) * 3.0 + unit_count + 0.1 * positional
+        threatened = _centers_threatened(state, map_def, power)
+        return unit_count + centers_owned * 5.0 - threatened * 2.0
 
 
 def _node_values(map_def: MapDef) -> Dict[str, float]:
@@ -324,3 +319,22 @@ def _center_counts(state: GameState, map_def: MapDef) -> Dict[Power, int]:
             continue
         counts[owner] = counts.get(owner, 0) + 1
     return counts
+
+
+def _centers_threatened(state: GameState, map_def: MapDef, power: Power) -> int:
+    owners = _supply_center_owners(state, map_def)
+    threatened = 0
+    for center, owner in owners.items():
+        if owner != power:
+            continue
+        for neighbor in map_def.neighbors(center):
+            for enemy_power, units in state.units.items():
+                if enemy_power == power:
+                    continue
+                if neighbor in units.values():
+                    threatened += 1
+                    break
+            else:
+                continue
+            break
+    return threatened
