@@ -10,7 +10,7 @@ from dip_tom.env.game import active_powers
 from dip_tom.env.map import MapDef
 from dip_tom.env.orders import Hold, Move, Order, Support, legal_orders
 from dip_tom.env.state import GameState, Power, UnitId
-from dip_tom.negotiation.deal import Deal, NoEnterDeal, PeaceDeal
+from dip_tom.negotiation.deal import Deal, NoEnterDeal, PeaceDeal, SupportDeal, UnitRef
 
 UnitKey = Tuple[Power, UnitId]
 
@@ -113,7 +113,39 @@ class BaselineNegotiatorAgent:
             deals.extend(
                 NoEnterDeal(i=power, j=target, node=node) for node in sampled
             )
+        deals.extend(self._support_deals(state, power, target))
         return deals
+
+    def _support_deals(
+        self, state: GameState, power: Power, target: Power
+    ) -> List[Deal]:
+        support_deals: List[Deal] = []
+        orders_by_unit = legal_orders(state, self._map_def, power)
+        for supporter_unit_id, orders in orders_by_unit.items():
+            for order in orders:
+                if not isinstance(order, Support):
+                    continue
+                if order.supported_power != target:
+                    continue
+                if order.to_node is None:
+                    continue
+                support_deals.append(
+                    SupportDeal(
+                        i=power,
+                        j=target,
+                        supported_unit=UnitRef(
+                            power=order.supported_power,
+                            unit_id=order.supported_unit_id,
+                        ),
+                        from_node=order.from_node,
+                        to_node=order.to_node,
+                        supporter_unit=UnitRef(power=power, unit_id=supporter_unit_id),
+                    )
+                )
+        if not support_deals:
+            return []
+        sample_count = min(self._num_deal_samples, len(support_deals))
+        return self._rng.sample(support_deals, sample_count)
 
     def _estimate_value(
         self, state: GameState, power: Power, deal: Deal | None
