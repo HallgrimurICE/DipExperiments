@@ -16,6 +16,7 @@ from dip_tom.agents.monte_carlo_agent import MonteCarloAgent
 from dip_tom.agents.negotiator_baseline import BaselineNegotiatorAgent
 from dip_tom.env.adjudicator import adjudicate_orders
 from dip_tom.env.game import active_powers, winning_power
+from dip_tom.env.orders import Order
 from dip_tom.env.state import GameState
 from dip_tom.maps import sample4
 from dip_tom.negotiation.protocol import NegotiationProtocol
@@ -55,6 +56,27 @@ def _center_count_winner(state: GameState) -> str:
     if len(leaders) != 1:
         return "draw"
     return leaders[0]
+
+
+def _log_deal_violations(
+    protocol: NegotiationProtocol,
+    state: GameState,
+    orders: dict[tuple[str, str], Order],
+) -> None:
+    orders_by_power: dict[str, dict[str, Order]] = {}
+    for (power, unit_id), order in orders.items():
+        orders_by_power.setdefault(power, {})[unit_id] = order
+
+    for power in sample4.POWERS:
+        for deal in protocol.accepted_deals(power):
+            submitted = orders_by_power.get(power, {})
+            violations = deal.violations(power, submitted, state)
+            for violation in violations:
+                print(
+                    "[deal violation] "
+                    f"turn {state.turn} {violation.power} violated {violation.deal}: "
+                    f"{violation.reason}"
+                )
 
 
 def run_series(
@@ -103,16 +125,24 @@ def run_series(
                 break
             protocol.run_turn(current, powers=sample4.POWERS)
             for power in ("A", "B"):
-                agents[power].set_active_deals(protocol.accepted_deals(power))
+                accepted = protocol.accepted_deals(power)
+                agents[power].set_active_deals(accepted)
+                if accepted:
+                    for deal in accepted:
+                        print(
+                            f"[deal accepted] turn {current.turn} {power} accepted {deal}"
+                        )
                 if verbose:
-                    deal_count = len(protocol.accepted_deals(power))
-                    print(f"[debug] turn {current.turn} deals for {power}: {deal_count}")
+                    print(
+                        f"[debug] turn {current.turn} deals for {power}: {len(accepted)}"
+                    )
 
             orders = {}
             for power in active_powers(current):
                 if verbose:
                     print(f"[debug] selecting orders for {power} at turn {current.turn}")
                 orders.update(agents[power].select_orders(current, sample4.MAP_DEF, power))
+            _log_deal_violations(protocol, current, orders)
             current = adjudicate_orders(current, orders)
             current.turn += 1
             protocol.expire_deals()
@@ -130,7 +160,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run sample4 games with negotiators vs heuristic agents."
     )
-    parser.add_argument("--games", type=int, default=10, help="Number of games to run.")
+    parser.add_argument("--games", type=int, default=1, help="Number of games to run.")
     parser.add_argument("--seed", type=int, default=400, help="Seed offset.")
     parser.add_argument(
         "--max-turns", type=int, default=120, help="Maximum turns per game."
