@@ -62,8 +62,9 @@ def run_series(
 ) -> Counter[str]:
     results: Counter[str] = Counter()
     for index in range(num_games):
+        print(f"Starting game {index + 1}/{num_games}")
         if verbose:
-            print(f"[debug] starting game {index + 1}/{num_games}")
+            print(f"[debug] seed offset for game {index + 1}: {seed_offset + index}")
         state = GameState(
             units={
                 power: dict(units) for power, units in sample4.STARTING_UNITS.items()
