@@ -57,9 +57,13 @@ def _center_count_winner(state: GameState) -> str:
     return leaders[0]
 
 
-def run_series(num_games: int, seed_offset: int, max_turns: int) -> Counter[str]:
+def run_series(
+    num_games: int, seed_offset: int, max_turns: int, verbose: bool
+) -> Counter[str]:
     results: Counter[str] = Counter()
     for index in range(num_games):
+        if verbose:
+            print(f"[debug] starting game {index + 1}/{num_games}")
         state = GameState(
             units={
                 power: dict(units) for power, units in sample4.STARTING_UNITS.items()
@@ -93,13 +97,20 @@ def run_series(num_games: int, seed_offset: int, max_turns: int) -> Counter[str]
         current = state.clone()
         while current.turn < max_turns:
             if winning_power(current, sample4.MAP_DEF) is not None:
+                if verbose:
+                    print(f"[debug] early winner at turn {current.turn}")
                 break
             protocol.run_turn(current, powers=sample4.POWERS)
             for power in ("A", "B"):
                 agents[power].set_active_deals(protocol.accepted_deals(power))
+                if verbose:
+                    deal_count = len(protocol.accepted_deals(power))
+                    print(f"[debug] turn {current.turn} deals for {power}: {deal_count}")
 
             orders = {}
             for power in active_powers(current):
+                if verbose:
+                    print(f"[debug] selecting orders for {power} at turn {current.turn}")
                 orders.update(agents[power].select_orders(current, sample4.MAP_DEF, power))
             current = adjudicate_orders(current, orders)
             current.turn += 1
@@ -108,6 +119,8 @@ def run_series(num_games: int, seed_offset: int, max_turns: int) -> Counter[str]
         winner = winning_power(current, sample4.MAP_DEF)
         if winner is None:
             winner = _center_count_winner(current)
+        if verbose:
+            print(f"[debug] winner for game {index + 1}: {winner}")
         results[winner] += 1
     return results
 
@@ -121,9 +134,14 @@ def main() -> None:
     parser.add_argument(
         "--max-turns", type=int, default=120, help="Maximum turns per game."
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable debug logging for each game and turn.",
+    )
     args = parser.parse_args()
 
-    results = run_series(args.games, args.seed, args.max_turns)
+    results = run_series(args.games, args.seed, args.max_turns, args.verbose)
     print(
         f"Results for sample4 ({args.games} games, negotiators A/B, heuristic C/D)"
     )
