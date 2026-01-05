@@ -8,12 +8,15 @@ from dip_tom.negotiation.deal import (
     UnitRef,
     Violation,
 )
+from dip_tom.negotiation.protocol import NegotiationParticipant, NegotiationProtocol
 
 __all__ = [
     "Deal",
     "NoEnterDeal",
     "PeaceDeal",
     "SupportDeal",
+    "NegotiationParticipant",
+    "NegotiationProtocol",
     "UnitRef",
     "Violation",
 ]
