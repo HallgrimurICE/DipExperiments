@@ -125,10 +125,10 @@ def main() -> None:
 
     results = run_series(args.games, args.seed, args.max_turns)
     print(
-        f\"Results for sample4 ({args.games} games, negotiators A/B, heuristic C/D)\"
+        f"Results for sample4 ({args.games} games, negotiators A/B, heuristic C/D)"
     )
     for power, count in results.most_common():
-        print(f\"  {power}: {count}\")
+        print(f"  {power}: {count}")
 
 
 if __name__ == "__main__":
