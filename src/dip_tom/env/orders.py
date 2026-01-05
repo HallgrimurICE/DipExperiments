@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List
-
-from .map import MapDef
+from typing import Dict, List, TYPE_CHECKING
 from .state import GameState, Node, Power, UnitId
+
+if TYPE_CHECKING:
+    from .map import MapDef
 
 
 @dataclass(frozen=True)
