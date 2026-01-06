@@ -124,6 +124,7 @@ def main() -> None:
     args = parser.parse_args()
 
     winner_counts: Counter[str] = Counter()
+    score_totals: dict[str, float] = {power: 0.0 for power in standard.POWERS}
     for idx in range(args.games):
         print(f"\nStarting game {idx + 1}/{args.games}...")
         state = _initial_state()
@@ -138,6 +139,8 @@ def main() -> None:
         winner = winning_power(final_state, standard.MAP_DEF)
         winner_counts[winner or "none"] += 1
         scores = _final_scores(final_state)
+        for power, score in scores.items():
+            score_totals[power] += score
         winner_score = _final_score(final_state, winner) if winner is not None else None
         print(
             f"Game {idx + 1}: turns={final_state.turn}, "
@@ -151,6 +154,11 @@ def main() -> None:
     print("\nSummary:")
     for power, count in winner_counts.items():
         print(f"  {power}: {count}")
+    if args.games > 0:
+        print("\nAverage final scores:")
+        for power in standard.POWERS:
+            average = score_totals[power] / float(args.games)
+            print(f"  {power}: {average:.1f}")
 
 
 if __name__ == "__main__":
