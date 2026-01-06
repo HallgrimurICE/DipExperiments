@@ -35,6 +35,7 @@ def _build_agents(seed: int) -> dict[str, object]:
     for power in standard.POWERS:
         if power in random_powers:
             agents[power] = RandomAgent(seed=seed + hash(power) % 1000)
+            print(f"Assigned RandomAgent to {power}.")
         else:
             agents[power] = MonteCarloAgent(
                 seed=seed + hash(power) % 1000,
@@ -42,6 +43,7 @@ def _build_agents(seed: int) -> dict[str, object]:
                 rollout_horizon=0,
                 rollout_samples=0,
             )
+            print(f"Assigned MonteCarloAgent (heuristic-only) to {power}.")
     return agents
 
 
@@ -56,8 +58,15 @@ def main() -> None:
 
     winner_counts: Counter[str] = Counter()
     for idx in range(args.games):
+        print(f"\nStarting game {idx + 1}/{args.games}...")
         state = _initial_state()
+        total_units = sum(len(units) for units in state.units.values())
+        print(
+            f"Initial units: {', '.join(sorted(state.units.keys()))} "
+            f"({total_units} total)"
+        )
         agents = _build_agents(args.seed + idx * 10)
+        print("Running game simulation...")
         final_state = run_game(state, standard.MAP_DEF, agents, max_turns=args.turns)
         winner = winning_power(final_state, standard.MAP_DEF)
         winner_counts[winner or "none"] += 1
