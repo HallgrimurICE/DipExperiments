@@ -13,7 +13,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from dip_tom.agents.heuristic_agent import HeuristicAgent
+from dip_tom.agents.monte_carlo_agent import MonteCarloAgent
 from dip_tom.agents.random_agent import RandomAgent
 from dip_tom.env.game import run_game, winning_power
 from dip_tom.env.state import GameState
@@ -104,14 +104,13 @@ def _build_agents(seed: int) -> dict[str, object]:
             agents[power] = RandomAgent(seed=seed + hash(power) % 1000)
             print(f"Assigned RandomAgent to {power}.")
         else:
-            agents[power] = HeuristicAgent(
+            agents[power] = MonteCarloAgent(
                 seed=seed + hash(power) % 1000,
-                top_k=4,
-                rollout_limit=128,
-                rollout_depth=2,
-                base_profile_count=12,
+                num_joint_samples=0,
+                rollout_horizon=0,
+                rollout_samples=0,
             )
-            print(f"Assigned HeuristicAgent to {power}.")
+            print(f"Assigned MonteCarloAgent (heuristic-only) to {power}.")
     return agents
 
 
