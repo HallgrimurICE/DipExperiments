@@ -29,7 +29,7 @@ def _initial_state() -> GameState:
     return GameState(units=deepcopy(standard.STARTING_UNITS), center_owner=center_owner)
 
 
-def _final_score(state: GameState, power: str) -> float:
+def _center_owners(state: GameState) -> dict[str, str | None]:
     supply_centers = set(standard.MAP_DEF.supply_centers)
     owners: dict[str, str | None] = {center: None for center in supply_centers}
     for center, owner in state.center_owner.items():
@@ -44,6 +44,13 @@ def _final_score(state: GameState, power: str) -> float:
     for center in owners:
         if owners[center] is None:
             owners[center] = unit_by_node.get(center)
+
+    return owners
+
+
+def _final_score(state: GameState, power: str) -> float:
+    supply_centers = set(standard.MAP_DEF.supply_centers)
+    owners = _center_owners(state)
 
     centers_owned = sum(1 for owner in owners.values() if owner == power)
     unit_count = len(state.units.get(power, {}))
@@ -63,6 +70,30 @@ def _final_score(state: GameState, power: str) -> float:
             break
 
     return unit_count + centers_owned * 5.0 - threatened * 2.0
+
+
+def _final_scores(state: GameState) -> dict[str, float]:
+    owners = _center_owners(state)
+    scores: dict[str, float] = {}
+    for power in standard.POWERS:
+        centers_owned = sum(1 for owner in owners.values() if owner == power)
+        unit_count = len(state.units.get(power, {}))
+        threatened = 0
+        for center, owner in owners.items():
+            if owner != power:
+                continue
+            for neighbor in standard.MAP_DEF.neighbors(center):
+                for enemy_power, units in state.units.items():
+                    if enemy_power == power:
+                        continue
+                    if neighbor in units.values():
+                        threatened += 1
+                        break
+                else:
+                    continue
+                break
+        scores[power] = unit_count + centers_owned * 5.0 - threatened * 2.0
+    return scores
 
 
 def _build_agents(seed: int) -> dict[str, object]:
@@ -101,14 +132,16 @@ def main() -> None:
         final_state = run_game(state, standard.MAP_DEF, agents, max_turns=args.turns)
         winner = winning_power(final_state, standard.MAP_DEF)
         winner_counts[winner or "none"] += 1
-        winner_score = (
-            _final_score(final_state, winner) if winner is not None else None
-        )
+        scores = _final_scores(final_state)
+        winner_score = _final_score(final_state, winner) if winner is not None else None
         print(
             f"Game {idx + 1}: turns={final_state.turn}, "
             f"winner={winner or 'none'}, "
             f"final_score={winner_score if winner_score is not None else 'n/a'}"
         )
+        print("Final scores:")
+        for power in standard.POWERS:
+            print(f"  {power}: {scores[power]:.1f}")
 
     print("\nSummary:")
     for power, count in winner_counts.items():
