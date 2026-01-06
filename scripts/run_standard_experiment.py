@@ -104,7 +104,13 @@ def _build_agents(seed: int) -> dict[str, object]:
             agents[power] = RandomAgent(seed=seed + hash(power) % 1000)
             print(f"Assigned RandomAgent to {power}.")
         else:
-            agents[power] = HeuristicAgent(seed=seed + hash(power) % 1000)
+            agents[power] = HeuristicAgent(
+                seed=seed + hash(power) % 1000,
+                top_k=4,
+                rollout_limit=128,
+                rollout_depth=2,
+                base_profile_count=12,
+            )
             print(f"Assigned HeuristicAgent to {power}.")
     return agents
 

@@ -5,12 +5,12 @@ from __future__ import annotations
 import itertools
 import random
 from collections import OrderedDict
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple
 
 from dip_tom.env.adjudicator import adjudicate_orders
 from dip_tom.env.game import active_powers
 from dip_tom.env.map import MapDef
-from dip_tom.env.orders import Hold, Order, legal_orders
+from dip_tom.env.orders import Hold, Move, Order, Support, legal_orders
 from dip_tom.env.state import GameState, Power, UnitId
 
 UnitKey = Tuple[Power, UnitId]
@@ -24,6 +24,7 @@ class HeuristicAgent:
         *,
         seed: int | None = None,
         rng: random.Random | None = None,
+        top_k: int = 3,
         rollout_limit: int = 64,
         rollout_depth: int = 1,
         rollout_discount: float = 0.9,
@@ -35,6 +36,7 @@ class HeuristicAgent:
         if seed is not None and rng is not None:
             raise ValueError("Provide either a seed or an rng, not both.")
         self._rng = rng or random.Random(seed)
+        self._top_k = max(1, top_k)
         self._rollout_limit = max(1, rollout_limit)
         self._rollout_depth = max(1, rollout_depth)
         self._rollout_discount = max(0.0, min(1.0, rollout_discount))
@@ -59,9 +61,28 @@ class HeuristicAgent:
         self, state: GameState, map_def: MapDef, power: Power
     ) -> "OrderedDict[UnitKey, List[Order]]":
         orders_by_unit = legal_orders(state, map_def, power)
+        node_values = _node_values(map_def)
+        occupancy = _unit_occupancy(state)
         candidate_map: "OrderedDict[UnitKey, List[Order]]" = OrderedDict()
         for unit_id in sorted(orders_by_unit.keys()):
-            candidate_map[(power, unit_id)] = list(orders_by_unit[unit_id])
+            scored = [
+                (
+                    _order_score(
+                        state,
+                        map_def,
+                        power,
+                        unit_id,
+                        order,
+                        node_values,
+                        occupancy,
+                    ),
+                    order,
+                )
+                for order in orders_by_unit[unit_id]
+            ]
+            scored.sort(key=lambda item: item[0], reverse=True)
+            best_orders = [order for _, order in scored[: self._top_k]]
+            candidate_map[(power, unit_id)] = best_orders
         return candidate_map
 
     def _select_best_orders(
@@ -143,10 +164,23 @@ class HeuristicAgent:
         self, state: GameState, map_def: MapDef, power: Power
     ) -> Dict[UnitKey, Order]:
         orders_by_unit = legal_orders(state, map_def, power)
+        node_values = _node_values(map_def)
+        occupancy = _unit_occupancy(state)
         baseline: Dict[UnitKey, Order] = {}
         for unit_id, unit_orders in orders_by_unit.items():
             if unit_orders:
-                baseline[(power, unit_id)] = unit_orders[0]
+                baseline[(power, unit_id)] = max(
+                    unit_orders,
+                    key=lambda order: _order_score(
+                        state,
+                        map_def,
+                        power,
+                        unit_id,
+                        order,
+                        node_values,
+                        occupancy,
+                    ),
+                )
             else:
                 baseline[(power, unit_id)] = Hold(power=power, unit_id=unit_id)
         return baseline
@@ -155,10 +189,29 @@ class HeuristicAgent:
         self, state: GameState, map_def: MapDef, power: Power
     ) -> Dict[UnitKey, Order]:
         orders_by_unit = legal_orders(state, map_def, power)
+        node_values = _node_values(map_def)
+        occupancy = _unit_occupancy(state)
         selected: Dict[UnitKey, Order] = {}
         for unit_id, unit_orders in orders_by_unit.items():
             if unit_orders:
-                selected[(power, unit_id)] = self._rng.choice(unit_orders)
+                scored = [
+                    (
+                        _order_score(
+                            state,
+                            map_def,
+                            power,
+                            unit_id,
+                            order,
+                            node_values,
+                            occupancy,
+                        ),
+                        order,
+                    )
+                    for order in unit_orders
+                ]
+                scored.sort(key=lambda item: item[0], reverse=True)
+                top_orders = [order for _, order in scored[: self._top_k]]
+                selected[(power, unit_id)] = self._rng.choice(top_orders)
             else:
                 selected[(power, unit_id)] = Hold(power=power, unit_id=unit_id)
         return selected
@@ -227,6 +280,69 @@ class HeuristicAgent:
             + self._supply_center_weight * centers_owned
             - self._threatened_penalty * threatened
         )
+
+
+def _node_values(map_def: MapDef) -> Dict[str, float]:
+    degrees = {node: 0 for node in map_def.nodes}
+    for left, right in map_def.edges:
+        degrees[left] = degrees.get(left, 0) + 1
+        degrees[right] = degrees.get(right, 0) + 1
+    supply_centers = set(map_def.supply_centers)
+    return {
+        node: degrees.get(node, 0) + (2.0 if node in supply_centers else 0.0)
+        for node in map_def.nodes
+    }
+
+
+def _unit_occupancy(state: GameState) -> Dict[str, Power]:
+    occupancy: Dict[str, Power] = {}
+    for power, units in state.units.items():
+        for location in units.values():
+            occupancy[location] = power
+    return occupancy
+
+
+def _order_score(
+    state: GameState,
+    map_def: MapDef,
+    power: Power,
+    unit_id: UnitId,
+    order: Order,
+    node_values: Dict[str, float],
+    occupancy: Dict[str, Power],
+) -> float:
+    center_owners = _supply_center_owners(state, map_def)
+    if isinstance(order, Move):
+        base = node_values.get(order.to_node, 0.0)
+        occupant = occupancy.get(order.to_node)
+        if occupant is None:
+            base += 0.4
+        elif occupant == power:
+            base -= 1.2
+        else:
+            base += 0.8
+        if order.to_node in center_owners:
+            owner = center_owners.get(order.to_node)
+            if owner is None:
+                base += 1.2
+            elif owner != power:
+                base += 1.5
+        return base + 0.1
+
+    if isinstance(order, Hold):
+        location = state.unit_position(power, unit_id)
+        return node_values.get(location, 0.0) * 0.35
+
+    if isinstance(order, Support):
+        target = order.to_node or order.from_node
+        base = node_values.get(target, 0.0) * 0.2
+        if order.supported_power == power:
+            base += 0.3
+        else:
+            base -= 0.2
+        return base
+
+    return 0.0
 
 
 def _supply_center_owners(state: GameState, map_def: MapDef) -> Dict[str, Power | None]:
